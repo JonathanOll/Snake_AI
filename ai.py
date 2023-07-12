@@ -1,18 +1,28 @@
 from copy import deepcopy
-from math import exp
+from math import exp, floor
 from const import *
 from random import choice, uniform
 from pygame.draw import rect, line
+
 
 def sigmoid(z):
     return 1 / (1 + exp(-z))
 
 
 class Neuron:
-    def __init__(self, id, type="hidden"):
+    def __init__(self, id, type="hidden", layer=None):
         self.id = id
         self.value = 0
         self.type = type
+        if layer:
+            self.layer = layer
+        else:
+            if type == "input":
+                self.layer = 0
+            elif type == "output":
+                self.layer = 9999999
+            else:
+                self.layer = 1
 
 
 class Connection:
@@ -108,16 +118,24 @@ class NeuralNetwork:
 
     def add_neuron(self):
 
-        if len(self.connections) == 0 : return
+        if len(self.connections) == 0: 
 
-        c = choice(self.connections)
-        c.enabled = False
-        new = Neuron(len(self.neurons))
-        
-        self.neurons.append(new)
-        
-        self.connections.append(Connection(c.inp, new, len(self.connections)))
-        self.connections.append(Connection(new, c.out, len(self.connections)))
+            new = Neuron(len(self.neurons))
+            self.neurons.append(new)
+            
+            self.connections.append(Connection(choice(self.neurons[:8]), new, len(self.connections)))
+            self.connections.append(Connection(new, choice(self.neurons[8:12]), len(self.connections)))
+            
+        else:
+
+            c = choice(self.connections)
+            c.enabled = False
+            new = Neuron(len(self.neurons))
+            
+            self.neurons.append(new)
+            
+            self.connections.append(Connection(c.inp, new, len(self.connections)))
+            self.connections.append(Connection(new, c.out, len(self.connections)))
         
     def mutate(self):
 
@@ -213,16 +231,91 @@ class NeuralNetwork:
             color = tuple(coef * NEURON_POSITIVE_ACTIVATION[i] + (1 - coef) * NEURON_NEGATIVE_ACTIVATION[i] for i in range(3))
             x, y =  neurons_pos[neuron][0], neurons_pos[neuron][1]
             rect(screen, color, (x, y, INPUT_NEURON_SIZE, INPUT_NEURON_SIZE))
-            
-class Generation:
-    def __init__(self):
+
+species_count = 0
+
+class Species:
+    def __init__(self, representative):
+        global species_count
+        self.id = species_count
+        species_count += 1
+
+        self.representative = representative
+
+        self.genomes = []
+
+        self.speciesAge = 0
+    
+    def delta(self, other):
+
+        delta = 0
+
+        for link in self.representative.connections:
+            ok = False
+            for link2 in other.connections:
+                if link.id == link2.id:
+                    delta += link.weight - link2.weight
+                    ok = True
+                    break
+            if not ok:
+                delta += EXCESS_GEN_C
+        if len(other.connections) > len(self.representative.connections):
+            delta += DISJOINTED_GEN_C * (len(other.connections) - len(self.representative.connections))
+        return delta
+
+    def compute_average_fitness(self):
+
+        total = 0
+
+        for genome in self.genomes:
+
+            total += genome.fitness
+
+        return total / max(1, len(self.genomes))
+
+    def remove_under_average(self):
+
+        avg = self.compute_average_fitness()
+
+        to_remove = []
+
+        for g in self.genomes:
+
+            if g.fitness < avg:
+                
+                to_remove.append(self)
+
+        for rem in to_remove:
+            if rem in self.genomes:
+                self.genomes.remove(rem)
         
-        self.population = [NeuralNetwork() for i in range(POPULATION_SIZE)]
+        return to_remove
+    
+    def gen_childs(self, count):
+
+        res = []
+
+        for i in range(count):
+            parent1 = choice(self.genomes)
+            parent2 = choice(self.genomes)
+
+            if parent1 == parent2 : continue
+
+            res.append(parent1.child(parent2))
+        
+        return res
+
+class Generation:
+    def __init__(self, init=True):
+        
+        self.population = [NeuralNetwork() for i in range(POPULATION_SIZE)] if init else []
         self.current = 0
 
-        for ind in self.population:
-            for i in range(MUTATION_AMOUNT):
-                ind.mutate()
+        if init:
+
+            for ind in self.population:
+                for i in range(MUTATION_AMOUNT):
+                    ind.mutate()
 
     def select_elite(self):
 
@@ -241,11 +334,63 @@ class Generation:
 
             self.population.append(parent1.child(parent2))
     
+    def compute_species(self):
+        species = []
+
+        for g in self.population:
+            ok = False
+            for s in species:
+                if s.delta(g) < MAX_DISTANCE:
+                    s.genomes.append(g)
+                    ok = True
+                    break
+            if not ok:
+                species.append(Species(g))
+    
+        return species
+    
+    def gen_childs(self, species):
+        
+        avg_fit = []
+
+        for specie in species:
+            avg_fit.append((specie, specie.compute_average_fitness()))
+
+        self.population.clear()
+
+        to_create = POPULATION_SIZE - len(self.population)
+
+        su = 0
+        for i in avg_fit:
+            su += i[1]
+        
+
+        for s in species:
+
+            if s.compute_average_fitness() < su / POPULATION_SIZE:
+
+                species.remove(s)
+
+        for s in species:
+
+            self.population.extend(s.gen_childs(floor(s.compute_average_fitness() / max(1, su) * to_create)))
+
+        for i in range(max(0, POPULATION_SIZE - len(self.population))):
+
+            self.population.append(NeuralNetwork())
+
+
     def next_generation(self):
 
-        self.select_elite()
 
-        self.gen_children()
+        species = self.compute_species()
+
+        self.gen_childs(species)
+
+
+        """self.select_elite()
+
+        self.gen_children()"""
 
     def get_current_ind(self):
 

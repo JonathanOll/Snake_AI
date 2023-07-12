@@ -6,8 +6,6 @@ import pygame
 from ai import NeuralNetwork, Generation
 import sys
 
-sys.setrecursionlimit(999999999)
-
 class Controller:
 
     def __init__(self, table={}, network=None):
@@ -27,7 +25,7 @@ class Controller:
             res = self.network.forward(inputs)
 
             best = 0
-            for i in range(1, 4):
+            for i in range(0, 4):
                 if res[i] > res[best]:
                     best = i
             
@@ -63,7 +61,7 @@ class Game:
         if not reset:
             self.id = Game.GAME_COUNT
             Game.GAME_COUNT += 1
-        self.running = True
+            self.running = True
         self.alive_tick = 0
         self.tick_without_growing = 0
 
@@ -83,6 +81,7 @@ class Game:
 
         self.apples = []
         self.free_spaces = [ (x, y) for x in range(MAP_WIDTH) for y in range(MAP_HEIGHT) ]
+        self.explored = []
 
         self.snake = [ (MAP_WIDTH // 2, MAP_HEIGHT // 2),
                        (MAP_WIDTH // 2, MAP_HEIGHT // 2 + 1) ]
@@ -106,10 +105,16 @@ class Game:
         
         if self.controller.network is not None:
 
-            self.controller.network.fitness = 10 * len(self.snake) ** 2
+            self.controller.network.fitness = 10 * (max(0, len(self.snake) - 1)) ** 2
+
+            if self.controller.network.fitness > 50:
+                print( self.controller.network.fitness)
+
+            if best is None or best.network.fitness < self.controller.network.fitness:
+
+                globals()["best"] = self.controller
             
             self.__init__(reset=True)
-            self.run()
 
     def gen_apple(self):
 
@@ -136,6 +141,10 @@ class Game:
             self.apples.remove(new_pos)
             self.gen_apple()
             self.tick_without_growing = 0
+
+        if new_pos not in self.explored:
+
+            self.explored.append(new_pos)
 
         if not self.is_pos_valid(new_pos) or new_pos in self.snake:
             self.end()
@@ -168,7 +177,7 @@ class Game:
         
         # verification de l'état du jeu
 
-        if len(self.snake) >= MAP_HEIGHT * MAP_WIDTH or self.tick_without_growing > TICK_WITHOUT_GROWING_LIMIT:
+        if len(self.snake) >= MAP_HEIGHT * MAP_WIDTH or self.tick_without_growing > TICK_WITHOUT_GROWING_LIMIT + (10 * (len(self.snake) - 2)):
 
             self.end()
         
@@ -180,7 +189,7 @@ class Game:
 
         base_x, base_y = self.snake[0]
 
-        # Détection des obstacles
+        # Détection des murs
 
         for dir in DIR8:
             res = 0
@@ -188,9 +197,27 @@ class Game:
             x += dx
             y += dy
 
-            while self.is_pos_valid(x, y) and (x, y) not in self.snake:
+            while self.is_pos_valid(x, y):
                 x += dx
                 y += dy
+                res += 1
+            
+            inputs.append(res)
+        
+        # Détection du snake
+
+        for dir in DIR8:
+            res = 0
+            x, y, (dx, dy) = base_x, base_y, dir
+            x += dx
+            y += dy
+
+            while (x, y) not in self.snake:
+                x += dx
+                y += dy
+                if not self.is_pos_valid(x, y):
+                    res = -1
+                    break
                 res += 1
             
             inputs.append(res)
@@ -208,7 +235,7 @@ class Game:
                 y += dy
                 res += 1
                 if not self.is_pos_valid(x, y):
-                    res = -1
+                    res = -999
                     break
             
             inputs.append(res)
@@ -237,7 +264,7 @@ class Game:
             self.screen.blit(text, (MAP_WIDTH * CELL_SIZE // 2 - text.get_width() // 2, MAP_HEIGHT * CELL_SIZE // 2 - text.get_height() // 2))
 
         if self.generation:
-            text = self.font.render("Game #" + str(self.generation.current_index()), False, GAME_ID_COLOR)
+            text = self.font.render("Game #" + str(self.generation.current_index()) + " Gen #" + str(self.generation.gen), False, GAME_ID_COLOR)
             self.screen.blit(text, (MAP_WIDTH * CELL_SIZE // 2 - text.get_width() // 2, MAP_HEIGHT * CELL_SIZE + 5))
 
         if self.controller.network:
@@ -256,15 +283,23 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 sys.exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                print(best.network.fitness)
+                self.running = False
+                self.__init__(reset=True)
+                self.controller = best
+                globals()["TICK_DELAY"] = 1/5
+                return
         if not self.running and "ok" in self.controller.pressed:
             self.__init__(reset=True)
-            self.run()
 
     def run(self):
 
+        self.running = True
+
         self.gen_apples()
 
-        while True:
+        while self.running:
 
             self.handle_event()
 
@@ -288,7 +323,14 @@ class Game:
 game = Game(generation=Generation())
 
 game.init_window()
-game.run()
+
+best = None
+
+
+
+
+while 1:
+    game.run()
 
         
 

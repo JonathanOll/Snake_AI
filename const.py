@@ -5,8 +5,8 @@
 
 ## Variables de fonctionnement
 MAP_WIDTH, MAP_HEIGHT = 10, 10  # taille du plateau, en case
-MAX_APPLE = 3  # nombre de pommes présentes en même temps sur un plateau
-TICK_DELAY = 1 / 100  # temps entre chaque déplacement, en secondes
+MAX_APPLE = 1  # nombre de pommes présentes en même temps sur un plateau
+TICK_DELAY = 1 / 100000  # temps entre chaque déplacement, en secondes
 
 ## Pour gérer les déplacements, à ne pas modifier
 DIR = [ (0, -1),
@@ -38,9 +38,13 @@ APPLE_CELL_COLOR = (255, 50, 50)  # couleur d'une case contenant une pomme
 GAME_OVER_COLOR = (255, 255, 255)  # couleur du texte affiché en cas de mort
 GAME_ID_COLOR = (255, 255, 255)  # couleur du texte en bas annonçant l'id de la partie
 
+
+NEURONS_COUNTS = [(24, 10), (10, 10), (10, 4)]
+
+
 # Affichages relatifs à l'IA
 INPUT_NEURON_SIZE = 15  # taille d'un neurone de la couche d'entrée
-HIDDEN_NEURON_SIZE = 15  # taille d'un neurone d'une couche cachée
+HIDDEN_NEURON_SIZE = 10  # taille d'un neurone d'une couche cachée
 OUTPUT_NEURON_SIZE = 25  # taille d'un neurone de la couche de sortie
 NEGATIVE_SYNAPSE_COLOR = (50, 255, 50)  # couleur d'une synapse transportant une valeur négative
 POSITIVE_SYNAPSE_COLOR = (255, 50, 50)  # couleur d'une synapse transportant une valeur positive
@@ -57,18 +61,23 @@ NN_DISPLAY_RECT = (720, 0, 560, 710)  # zone dédiée à l'affichage du réseau 
 
 # fonctionnement général de l'évolution
 
-TICK_WITHOUT_GROWING_LIMIT = 30  # nombre de tick avant que l'IA soit supprimée, si elle ne grandit pas
+TICK_WITHOUT_GROWING_LIMIT = 50  # nombre de tick avant que l'IA soit supprimée, si elle ne grandit pas
 OTHER_PARENT_WEIGHT_CHANCES = 0.5  # chance qu'un enfant prenne le poids d'une connexion du parent le moins bon
 WEIGHT_MUTATION_CHANCES = 0.5  # chances que le poids d'une connexion change pendant une mutation
 WEIGHT_MAX_CHANGES = 0.3  # changement maximal de poids pendant la mutation d'une connexion
-WEIGHT_RESET_CHANCES = 0.5  # chances que le poids d'une connexion soit réinitialisé pendant une mutation
-MUTATION_AMOUNT = 5  # nombres de mutation après la création d'un enfant
-MUTATE_WEIGHTS_CHANCE = 0.85  # chances que les poids changent
-MUTATE_ADD_CONNECTION_CHANCE = 0.7  # chances qu'une connexion se créée entre deux neurones non connectés
-MUTATE_ADD_NEURON_CHANCE = 0.2  # chances qu'un neurone s'ajoute entre deux neurones déjà connectés
+WEIGHT_RESET_CHANCES = 0.25  # chances que le poids d'une connexion soit réinitialisé pendant une mutation
+MUTATION_AMOUNT = 10 # nombres de mutation après la création d'un enfant
+MUTATE_WEIGHTS_CHANCE = 0.95  # chances que les poids changent
+MUTATE_ADD_CONNECTION_CHANCE = 0.85  # chances qu'une connexion se créée entre deux neurones non connectés
+MUTATE_ADD_NEURON_CHANCE = 0.39  # chances qu'un neurone s'ajoute entre deux neurones déjà connectés
+WEIGHT_DIFFERENCE_C = 0.92  # poids accordé aux différences de poids pour la différence entre génomes d'une espece
+EXCESS_GEN_C = 0.5  # poids accordé aux exces de genes entre génomes d'une espece
+DISJOINTED_GEN_C = 0.5 # poids accordé aux genes disjoints entre génomes d'une espece
+MAX_DISTANCE = 1 # distance maximale autorisée entre 2 individus de la même espece
+
 
 # concernant les population d'IA
 
-POPULATION_SIZE = 50  # nombre d'individus présents de base dans une population
-ELITE_COUNT = 5  # nombre des meilleurs individus conservés entre chaque génération
+POPULATION_SIZE = 2000  # nombre d'individus présents de base dans une population
+ELITE_COUNT = 10  # nombre des meilleurs individus conservés entre chaque génération
 
